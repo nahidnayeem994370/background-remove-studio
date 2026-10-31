@@ -21,7 +21,7 @@ Then visit `http://localhost:8000`.
 
 ## Notes
 
-- Background removal downloads the AI model and browser assets on first use. An internet connection is required for the initial download.
+- The compact AI model is preloaded automatically when the page opens (about 40 MB). It is cached by the visitor’s browser for later visits. An internet connection is required for the first download on each device/browser.
 - AI processing runs in the browser; there is no paid background-removal API. Performance depends on the device and available memory. Large images may take time or fail on low-memory phones.
 - Resize, compress and background composition use the browser Canvas API.
 - This static website can be deployed on GitHub Pages or any static hosting provider.
