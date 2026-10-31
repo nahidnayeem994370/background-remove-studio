@@ -56,7 +56,20 @@ $("#quality-input").addEventListener("input",e=>$("#quality-value").textContent=
 $("#width-input").addEventListener("input",()=>{if($("#keep-ratio").checked&&sourceImage?.naturalWidth){$("#height-input").value=Math.round(+$("#width-input").value*sourceImage.naturalHeight/sourceImage.naturalWidth)}});
 $("#height-input").addEventListener("input",()=>{if($("#keep-ratio").checked&&sourceImage?.naturalHeight){$("#width-input").value=Math.round(+$("#height-input").value*sourceImage.naturalWidth/sourceImage.naturalHeight)}});
 function progress(show,msg="Processing image…",percent=0){$("#progress").classList.toggle("hidden",!show);$("#progress-text").textContent=msg;$("#progress-bar").style.width=percent+"%";}
-async function removeBg(file){const mod=await import("https://esm.sh/@imgly/background-removal@1.7.0");const remove=mod.removeBackground||mod.default;return await remove(file,{progress:(key,current,total)=>{if(total)progress(true,"Downloading AI model…",Math.round(current/total*75));}});}
+const AI_CONFIG={model:"isnet_quint8",progress:(key,current,total)=>{if(total){const pct=Math.round(current/total*100);const status=$("#model-status");if(status)status.textContent="Downloading free AI model… "+pct+"%";}}};
+let aiModulePromise=null,modelReady=false;
+async function loadAiModel(){
+  if(modelReady)return;
+  if(!aiModulePromise)aiModulePromise=(async()=>{
+    const mod=await import("https://esm.sh/@imgly/background-removal@1.7.0");
+    if(typeof mod.preload!=="function")throw new Error("AI model preloader unavailable");
+    await mod.preload(AI_CONFIG);
+    return mod;
+  })();
+  try{await aiModulePromise;modelReady=true;const status=$("#model-status");if(status)status.textContent="✓ Free AI model ready — cached on this device";}
+  catch(e){aiModulePromise=null;const status=$("#model-status");if(status)status.textContent="AI model will download when you remove a background.";}
+}
+async function removeBg(file){const mod=await import("https://esm.sh/@imgly/background-removal@1.7.0");const remove=mod.removeBackground||mod.default;return await remove(file,AI_CONFIG);}
 function canvasBlob(canvas,type,quality){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Could not create image. Try another format.")),type,quality));}
 async function run(){if(!sourceFile)return showError("Choose an image first.");processBtn.disabled=true;processBtn.style.opacity=".65";$("#result-actions").classList.add("hidden");$("#error-message").classList.add("hidden");progress(true,"Preparing image…",5);try{let blob,filename="edited-image.png";
 if(activeTool==="remove"||activeTool==="change"){progress(true,"Loading free AI background remover…",8);const cutout=await removeBg(sourceFile);if(activeTool==="remove"){blob=cutout;filename="background-removed.png";}else{progress(true,"Applying new background…",88);const cutImage=await createImageBitmap(cutout);const c=document.createElement("canvas");c.width=cutImage.width;c.height=cutImage.height;const ctx=c.getContext("2d");ctx.fillStyle=$("#bg-color").value;ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(cutImage,0,0);blob=await canvasBlob(c,"image/png");filename="background-changed.png";}}
@@ -66,3 +79,5 @@ processBtn.addEventListener("click",run);
 $("#download-btn").addEventListener("click",()=>{if(!outputBlob)return;});
 document.querySelector(".menu-toggle").addEventListener("click",()=>document.querySelector(".site-header nav").classList.toggle("open"));
 setTool("remove");
+// Download the compact AI model as soon as the page opens, before an image is uploaded.
+loadAiModel();
