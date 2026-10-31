@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="Free online background remover, background changer, image resizer and image compressor.">
+  <title>Background Remove Studio — Free Online Image Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="#"><span class="brand-mark">✦</span><span>Background <b>Remove</b> Studio</span></a>
+  <nav><a href="#tools">Tools</a><a href="#how">How it works</a><a class="nav-cta" href="#workspace">Try it free <span>↗</span></a></nav>
+  <button class="menu-toggle" aria-label="Open menu">☰</button>
+</header>
+<main>
+<section class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow"><span></span> FREE ONLINE IMAGE TOOLS</div>
+    <h1>Make every image<br><span>stand out.</span></h1>
+    <p>Remove backgrounds, change colors, resize and compress images — all in one simple studio.</p>
+    <a class="primary-btn" href="#workspace">Start editing for free <span>→</span></a>
+    <div class="trust"><span>✓ No sign-up</span><span>✓ Free to use</span><span>✓ No paid API</span></div>
+  </div>
+  <div class="hero-art" aria-label="Image editing preview">
+    <div class="spark s1">✳</div><div class="spark s2">✦</div>
+    <div class="art-card art-before"><small>BEFORE</small><div class="fake-photo"><div class="sun"></div><div class="person"><i></i><b></b></div></div></div>
+    <div class="art-arrow">→</div>
+    <div class="art-card art-after"><small>AFTER</small><div class="checker"><div class="person clean"><i></i><b></b></div></div><span class="done">✓</span></div>
+    <div class="floating-tag">✦ Background removed</div>
+  </div>
+</section>
+<section class="tools-section" id="tools">
+  <div class="section-heading"><div><div class="eyebrow">YOUR CREATIVE TOOLKIT</div><h2>Everything you need. <span>All free.</span></h2></div><p>Four handy tools to make your images look their best.</p></div>
+  <div class="tool-grid">
+    <button class="tool-card selected" data-tool="remove"><span class="tool-icon purple">✂</span><b>Background Remove</b><small>Erase image backgrounds automatically with AI.</small><span class="card-arrow">↗</span></button>
+    <button class="tool-card" data-tool="change"><span class="tool-icon blue">◐</span><b>Background Changer</b><small>Remove the background and add a new color.</small><span class="card-arrow">↗</span></button>
+    <button class="tool-card" data-tool="resize"><span class="tool-icon orange">⤢</span><b>Image Resize</b><small>Set the perfect dimensions for any platform.</small><span class="card-arrow">↗</span></button>
+    <button class="tool-card" data-tool="compress"><span class="tool-icon green">▧</span><b>Image Compress</b><small>Reduce image file size while keeping quality.</small><span class="card-arrow">↗</span></button>
+  </div>
+</section>
+<section class="workspace-section" id="workspace">
+  <div class="workspace-title"><div class="eyebrow">LET'S GET CREATIVE</div><h2>Your image editing <span>workspace</span></h2><p>Choose a tool, upload an image, and let the magic happen.</p></div>
+  <div class="editor">
+    <aside class="editor-sidebar">
+      <div class="sidebar-label">SELECT A TOOL</div>
+      <button class="side-tool active" data-tool="remove"><span>✂</span> Background Remove</button>
+      <button class="side-tool" data-tool="change"><span>◐</span> Background Changer</button>
+      <button class="side-tool" data-tool="resize"><span>⤢</span> Image Resize</button>
+      <button class="side-tool" data-tool="compress"><span>▧</span> Image Compress</button>
+      <div class="sidebar-note"><span>🔒</span><b>Your images stay yours</b><small>Processing happens in your browser. Background removal downloads an AI model when first used.</small></div>
+    </aside>
+    <div class="editor-main">
+      <div class="editor-top"><div><span class="live-dot"></span><b id="active-title">Background Remove</b><small id="active-desc">Remove image background automatically</small></div><span class="free-pill">FREE TOOL</span></div>
+      <div class="editor-body">
+        <div class="upload-panel" id="upload-panel">
+          <div class="upload-icon">↑</div><h3>Drop your image here</h3><p>or browse files from your device</p>
+          <label class="browse-btn" for="file-input">Choose an image</label>
+          <input id="file-input" type="file" accept="image/*" hidden>
+          <small>Supports JPG, PNG, WEBP · Max 20 MB</small>
+        </div>
+        <div class="edit-panel hidden" id="edit-panel">
+          <div class="preview-wrap"><img id="preview" alt="Selected image preview"><div class="preview-empty hidden" id="preview-empty"></div></div>
+          <div class="settings">
+            <div class="setting-row"><div><b id="setting-heading">Ready to remove?</b><small id="setting-help">Your image is ready for processing.</small></div></div>
+            <div id="change-settings" class="setting-control hidden"><label>Background color</label><div class="color-row"><input id="bg-color" type="color" value="#dcecff"><span id="color-value">#DCE CFF</span></div></div>
+            <div id="resize-settings" class="setting-control hidden"><label>Image dimensions (pixels)</label><div class="dimension-row"><input id="width-input" type="number" min="1" max="8000" placeholder="Width"><span>×</span><input id="height-input" type="number" min="1" max="8000" placeholder="Height"></div><label class="check-label"><input id="keep-ratio" type="checkbox" checked> Keep aspect ratio</label></div>
+            <div id="compress-settings" class="setting-control hidden"><label>Image quality <b id="quality-value">80%</b></label><input id="quality-input" type="range" min="10" max="100" value="80"><small>Lower quality means a smaller file.</small></div>
+            <button class="primary-btn process-btn" id="process-btn">Remove background <span>→</span></button>
+            <button class="text-btn" id="choose-another">Choose another image</button>
+            <div class="progress hidden" id="progress"><div class="progress-track"><span id="progress-bar"></span></div><small id="progress-text">Preparing image…</small></div>
+            <div class="result-actions hidden" id="result-actions"><div class="success-msg">✓ Your image is ready!</div><a class="download-btn" id="download-btn" download="edited-image.png">Download image ↓</a></div>
+          </div>
+        </div>
+        <div class="error-message hidden" id="error-message" role="alert"></div>
+      </div>
+      <div class="editor-foot"><span>✦ Free forever</span><span>•</span><span>No account needed</span><span>•</span><span>Works in your browser</span></div>
+    </div>
+  </div>
+</section>
+<section class="how-section" id="how"><div class="eyebrow">SIMPLE AS 1, 2, 3</div><h2>Great images in <span>three steps.</span></h2><div class="steps"><article><span>01</span><h3>Choose your tool</h3><p>Pick the image tool that matches what you need.</p></article><article><span>02</span><h3>Upload your image</h3><p>Select a photo from your phone, tablet or computer.</p></article><article><span>03</span><h3>Download and enjoy</h3><p>Process your image and save the result instantly.</p></article></div></section>
+</main>
+<footer><a class="brand" href="#"><span class="brand-mark">✦</span><span>Background <b>Remove</b> Studio</span></a><p>Simple image editing. Free for everyone.</p><small>© 2026 Background Remove Studio</small></footer>
+<script src="script.js"></script>
+</body></html>
