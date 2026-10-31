@@ -43,3 +43,11 @@
  .hero .compare-card .preview-wrap img{max-height:300px}
  .hero .compare-label{font-size:10px}
 }
+
+/* Highlight the After preview only when a valid transparent cutout is ready. */
+.hero .compare-grid.has-result .result-preview{
+  border:2px solid #a9b9ff;
+  border-radius:12px;
+  box-shadow:0 8px 24px rgba(66,99,235,.10);
+}
+.hero .compare-grid.has-result .compare-card:last-child .compare-label{color:#3155d9}
