@@ -16,3 +16,15 @@
 .hero .editor-main{width:100%}
 .hero .editor-body{padding:0;min-height:0}
 .hero .upload-panel{min-height:265px}
+
+/* Show the edited image first and place its download action underneath. */
+.hero .edit-panel{grid-template-columns:minmax(0,1fr)}
+.hero .preview-wrap{width:100%;min-height:280px}
+.hero .preview-wrap img{max-width:100%;max-height:520px}
+.hero .settings{width:100%}
+.hero .result-actions{width:100%;margin-top:4px}
+.hero .download-btn{width:100%;padding:14px}
+@media(max-width:560px){
+  .hero .preview-wrap{min-height:220px}
+  .hero .preview-wrap img{max-height:420px}
+}
