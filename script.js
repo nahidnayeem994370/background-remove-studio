@@ -73,9 +73,9 @@ async function removeBg(file){
   // Use BiRefNet-lite with mask refinement on WebGPU-capable devices.
   // Keep the smaller IS-Net engine as a reliable fallback for slower/mobile browsers.
   try{
-    const gpu=typeof navigator!=="undefined"&&"gpu" in navigator;
+    const mod=await import("https://esm.sh/@bg0/browser");
+    const gpu=typeof mod.getBrowserCapabilities==="function"&&mod.getBrowserCapabilities().webgpu;
     if(gpu){
-      const mod=await import("https://esm.sh/@bg0/browser");
       const result=await mod.removeBackground(file,{model:"lite",quality:"quality",onProgress:p=>{
         const labels={preparing:"Preparing AI…",downloading:"Loading high-quality AI…",processing:"Removing background…",finishing:"Smoothing image edges…"};
         const pct=p.progress==null?35:Math.max(8,Math.min(95,Math.round(p.progress*100)));
