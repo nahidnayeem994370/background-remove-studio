@@ -9,3 +9,10 @@
 .hero .editor-sidebar{min-height:310px}
 .model-status{margin-top:8px!important;color:#5268d8!important;font-weight:700}
 @media(max-width:560px){.hero{padding:38px 14px 48px}.hero-copy{margin-bottom:20px}.hero h1{font-size:39px}.hero .editor-sidebar{min-height:auto}}
+
+/* Keep the upload box immediately beneath the hero description. */
+.hero .editor{display:block;border:0;border-radius:0;box-shadow:none;background:transparent;overflow:visible}
+.hero .editor-sidebar,.hero .editor-top,.hero .editor-foot{display:none}
+.hero .editor-main{width:100%}
+.hero .editor-body{padding:0;min-height:0}
+.hero .upload-panel{min-height:265px}
