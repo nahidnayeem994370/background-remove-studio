@@ -7,10 +7,9 @@ function setTool(tool){activeTool=tool;document.querySelectorAll("[data-tool]").
 async function decodeToPng(file){
   const ext=(file.name.split(".").pop()||"").toLowerCase();
   const mime=(file.type||"").toLowerCase();
-  const isDirect=["png","jpg","jpeg","webp"].includes(ext)||/image\/(png|jpeg|webp)/i.test(mime);
   let input=file;
 
-  // HEIC/HEIF requires a dedicated decoder on most Android browsers.
+  // Convert HEIC/HEIF first; many Android browsers cannot decode these natively.
   if(["heic","heif"].includes(ext)||/image\/(heic|heif)/i.test(mime)){
     const mod=await import("https://esm.sh/heic2any@0.0.4");
     const convert=mod.default||mod;
@@ -18,10 +17,10 @@ async function decodeToPng(file){
     input=Array.isArray(converted)?converted[0]:converted;
   }
 
-  // TIFF is not decoded by most mobile browsers; decode it locally.
+  // Decode TIFF locally because native mobile-browser support is uncommon.
   if(["tif","tiff"].includes(ext)||/image\/tiff/i.test(mime)){
     const mod=await import("https://esm.sh/utif@3.1.0");
-    const bytes=new Uint8Array(await file.arrayBuffer());
+    const bytes=new Uint8Array(await input.arrayBuffer());
     const ifds=mod.decode(bytes);
     if(!ifds||!ifds.length)throw new Error("TIFF decoder found no image data.");
     mod.decodeImage(bytes,ifds[0]);
@@ -31,18 +30,21 @@ async function decodeToPng(file){
     return await canvasBlob(c,"image/png");
   }
 
-  // Preserve the fast path for the formats accepted directly by BiRefNet.
-  if(isDirect && input===file)return file;
-
-  // First try the browser's native decoder (AVIF, GIF, BMP, SVG, ICO, etc.).
+  // Always normalize the decoded image to PNG before sending it to the AI.
+  // This avoids format/MIME mismatches inside the model's image decoder.
   if(typeof createImageBitmap==="function"){
     try{
       const bitmap=await createImageBitmap(input);
       const c=document.createElement("canvas");c.width=bitmap.width;c.height=bitmap.height;
-      c.getContext("2d").drawImage(bitmap,0,0);bitmap.close?.();
+      const ctx=c.getContext("2d");
+      if(!ctx)throw new Error("Canvas is unavailable in this browser.");
+      ctx.drawImage(bitmap,0,0);bitmap.close?.();
       return await canvasBlob(c,"image/png");
-    }catch(bitmapError){console.warn("createImageBitmap could not decode this file; trying HTML image decoder.",bitmapError);}
+    }catch(bitmapError){
+      console.warn("Native bitmap decoding failed; trying HTML image decoder.",bitmapError);
+    }
   }
+
   return await new Promise((resolve,reject)=>{
     const url=URL.createObjectURL(input),img=new Image();
     img.onload=async()=>{
@@ -54,7 +56,7 @@ async function decodeToPng(file){
         resolve(await canvasBlob(c,"image/png"));
       }catch(e){URL.revokeObjectURL(url);reject(e);}
     };
-    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("Browser decoder cannot read this file. It may be an unsupported RAW, SVG, or damaged image."));};
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("Your browser cannot decode this image. Try a JPG or PNG copy."));};
     img.src=url;
   });
 }
@@ -66,7 +68,7 @@ async function showFile(file){
   try{
     const normalized=await decodeToPng(file);
     sourceFile=normalized instanceof File ? normalized : new File([normalized],(file.name.replace(/\.[^.]+$/,"")||"image")+".png",{type:"image/png"});
-    sourceUrl&&URL.revokeObjectURL(sourceUrl);sourceUrl=URL.createObjectURL(normalized);
+    sourceUrl&&URL.revokeObjectURL(sourceUrl);sourceUrl=URL.createObjectURL(sourceFile);
     preview.src="";sourcePreview.src=sourceUrl;$("#result-placeholder").classList.remove("hidden");$(".compare-grid").classList.remove("has-result");sourceImage=new Image();
     await new Promise((resolve,reject)=>{sourceImage.onload=resolve;sourceImage.onerror=()=>reject(new Error("This image format is not supported by your browser."));sourceImage.src=sourceUrl;});
     $("#width-input").value=sourceImage.naturalWidth;$("#height-input").value=sourceImage.naturalHeight;
@@ -136,7 +138,7 @@ if(activeTool==="remove"){$("#result-placeholder").classList.remove("hidden");$(
 progress(true,"Preparing image…",5);try{let blob,filename="edited-image.png";
 if(activeTool==="remove"||activeTool==="change"){progress(true,"Loading free AI background remover…",8);const cutout=await removeBg(sourceFile);if(activeTool==="remove"){blob=cutout;filename="background-removed.png";}else{progress(true,"Applying new background…",88);const cutImage=await createImageBitmap(cutout);const c=document.createElement("canvas");c.width=cutImage.width;c.height=cutImage.height;const ctx=c.getContext("2d");ctx.fillStyle=$("#bg-color").value;ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(cutImage,0,0);blob=await canvasBlob(c,"image/png");filename="background-changed.png";}}
 else{progress(true,"Editing your image…",30);const c=document.createElement("canvas"),ctx=c.getContext("2d");if(activeTool==="resize"){const w=Math.round(+$("#width-input").value),h=Math.round(+$("#height-input").value);if(!w||!h||w>8000||h>8000)throw new Error("Enter a width and height between 1 and 8000 pixels.");c.width=w;c.height=h;ctx.drawImage(sourceImage,0,0,w,h);blob=await canvasBlob(c,"image/png");filename="resized-image.png";}else{c.width=sourceImage.naturalWidth;c.height=sourceImage.naturalHeight;ctx.drawImage(sourceImage,0,0);blob=await canvasBlob(c,"image/jpeg",+$("#quality-input").value/100);filename="compressed-image.jpg";}}
-if(resultUrl)URL.revokeObjectURL(resultUrl);outputBlob=blob;resultUrl=URL.createObjectURL(blob);preview.src=resultUrl;$("#result-placeholder").classList.add("hidden");$(".compare-grid").classList.add("has-result");$("#download-btn").href=resultUrl;$("#download-btn").download=filename;$("#result-actions").classList.remove("hidden");$("#preview").alt="Processed image result";$("#preview").scrollIntoView({behavior:"smooth",block:"nearest"});progress(false);$("#setting-heading").textContent="Background removed — preview your image";$("#setting-help").textContent="Download your edited image below."; }catch(err){console.error(err);progress(false);if(activeTool==="remove"){$("#result-placeholder").classList.remove("hidden");$("#result-placeholder").innerHTML='<b>Background removal did not finish</b><small>Please try again with another photo.</small>';}showError(/decode|decod|image format|unsupported/i.test(err.message||"")?"This image format is not supported. Please try JPG, PNG, WEBP, GIF, BMP, AVIF or HEIC.":(err.message||"The image could not be processed. Please try another image or a smaller file."));}finally{processBtn.disabled=false;processBtn.style.opacity="1";}}
+if(resultUrl)URL.revokeObjectURL(resultUrl);outputBlob=blob;resultUrl=URL.createObjectURL(blob);preview.src=resultUrl;$("#result-placeholder").classList.add("hidden");$(".compare-grid").classList.add("has-result");$("#download-btn").href=resultUrl;$("#download-btn").download=filename;$("#result-actions").classList.remove("hidden");$("#preview").alt="Processed image result";$("#preview").scrollIntoView({behavior:"smooth",block:"nearest"});progress(false);$("#setting-heading").textContent="Background removed — preview your image";$("#setting-help").textContent="Download your edited image below."; }catch(err){console.error(err);progress(false);if(activeTool==="remove"){$("#result-placeholder").classList.remove("hidden");$("#result-placeholder").innerHTML='<b>Background removal did not finish</b><small>Please try again with another photo.</small>';}showError((err?.message||"The image could not be processed. Please try another image or a smaller file.")+" (See browser console for technical details.)");}finally{processBtn.disabled=false;processBtn.style.opacity="1";}}
 processBtn.addEventListener("click",run);
 $("#download-btn").addEventListener("click",()=>{if(!outputBlob)return;});
 document.querySelector(".menu-toggle").addEventListener("click",()=>document.querySelector(".site-header nav").classList.toggle("open"));
