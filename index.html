@@ -31,7 +31,7 @@
       <button class="side-tool" data-tool="change"><span>◐</span> Background Changer</button>
       <button class="side-tool" data-tool="resize"><span>⤢</span> Image Resize</button>
       <button class="side-tool" data-tool="compress"><span>▧</span> Image Compress</button>
-      <div class="sidebar-note"><span>🔒</span><b>Your images stay yours</b><small>Processing stays on your device. BiRefNet AI loads automatically when you open the page; the first download may take a while. <span id="ai-preload-status">Preparing AI model…</span></small></div>
+      <div class="sidebar-note"><span>🔒</span><b>Your images stay yours</b><small>Processing stays on your device. BiRefNet AI runs on your device; the first model download may take a while. <span id="ai-preload-status">Preparing AI model…</span></small></div>
     </aside>
     <div class="editor-main">
       <div class="editor-top"><div><span class="live-dot"></span><b id="active-title">Background Remove</b><small id="active-desc">Remove image background automatically</small></div><span class="free-pill">FREE TOOL</span></div>
@@ -46,6 +46,13 @@
           <div class="compare-grid"><div class="compare-card"><span class="compare-label">Original</span><div class="preview-wrap"><img id="source-preview" alt="Original image"></div></div><div class="compare-card"><span class="compare-label">After</span><div class="preview-wrap result-preview"><img id="preview" alt="Processed image preview"><div class="result-placeholder" id="result-placeholder">Your edited image will appear here</div></div></div></div>
           <div class="settings">
             <div class="setting-row"><div><b id="setting-heading">Ready to remove?</b><small id="setting-help">Your image is ready for processing.</small></div></div>
+            <div class="setting-control export-settings">
+              <label for="output-format">Output format</label>
+              <select id="output-format"><option value="image/png">PNG (transparent background)</option><option value="image/jpeg">JPG</option><option value="image/webp">WEBP</option></select>
+              <label class="check-label"><input id="resize-output" type="checkbox"> Change output resolution</label>
+              <div class="dimension-row hidden" id="output-dimensions"><input id="output-width" type="number" min="1" max="8000" placeholder="Width"><span>×</span><input id="output-height" type="number" min="1" max="8000" placeholder="Height"></div>
+              <small>PNG keeps transparency. JPG uses a white background. Maximum output dimension: 8000 px.</small>
+            </div>
             <div id="change-settings" class="setting-control hidden"><label>Background color</label><div class="color-row"><input id="bg-color" type="color" value="#dcecff"><span id="color-value">#DCECFF</span></div></div>
             <div id="resize-settings" class="setting-control hidden"><label>Image dimensions (pixels)</label><div class="dimension-row"><input id="width-input" type="number" min="1" max="8000" placeholder="Width"><span>×</span><input id="height-input" type="number" min="1" max="8000" placeholder="Height"></div><label class="check-label"><input id="keep-ratio" type="checkbox" checked> Keep aspect ratio</label></div>
             <div id="compress-settings" class="setting-control hidden"><label>Image quality <b id="quality-value">80%</b></label><input id="quality-input" type="range" min="10" max="100" value="80"><small>Lower quality means a smaller file.</small></div>
@@ -75,5 +82,5 @@
 <section class="how-section" id="how"><div class="eyebrow">SIMPLE AS 1, 2, 3</div><h2>Great images in <span>three steps.</span></h2><div class="steps"><article><span>01</span><h3>Choose your tool</h3><p>Pick the image tool that matches what you need.</p></article><article><span>02</span><h3>Upload your image</h3><p>Select a photo from your phone, tablet or computer.</p></article><article><span>03</span><h3>Download and enjoy</h3><p>Process your image and save the result instantly.</p></article></div></section>
 </main>
 <footer><a class="brand" href="#"><span class="brand-mark">✦</span><span>Background <b>Remove</b> Studio</span></a><p>Simple image editing. Free for everyone.</p><small>© 2026 Background Remove Studio</small></footer>
-<script src="script.js?v=preview-alpha-check-12"></script>
+<script src="script.js?v=studio-export-tools-13"></script>
 </body></html>
