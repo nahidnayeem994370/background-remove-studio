@@ -31,7 +31,7 @@
       <button class="side-tool" data-tool="change"><span>◐</span> Background Changer</button>
       <button class="side-tool" data-tool="resize"><span>⤢</span> Image Resize</button>
       <button class="side-tool" data-tool="compress"><span>▧</span> Image Compress</button>
-      <div class="sidebar-note"><span>🔒</span><b>Your images stay yours</b><small>Processing happens in your browser. AI models start downloading in the background as soon as you open this page. Keep this tab open until they are ready.</small></div>
+      <div class="sidebar-note"><span>🔒</span><b>Your images stay yours</b><small>Processing stays on your device. BiRefNet AI loads automatically when you open the page; the first download may take a while. <span id="ai-preload-status">Preparing AI model…</span></small></div>
     </aside>
     <div class="editor-main">
       <div class="editor-top"><div><span class="live-dot"></span><b id="active-title">Background Remove</b><small id="active-desc">Remove image background automatically</small></div><span class="free-pill">FREE TOOL</span></div>
@@ -56,7 +56,7 @@
           </div>
         </div>
         <div class="error-message hidden" id="error-message" role="alert"></div>
-        <p class="privacy-note">AI tries on-device models first. Only if they fail, the image may be sent to free backup services to finish processing.</p>
+        <p class="privacy-note">Your image is processed on your device with BiRefNet AI. It is not uploaded to a background-removal server.</p>
       </div>
       <div class="editor-foot"><span>✦ Free forever</span><span>•</span><span>No account needed</span><span>•</span><span>Works in your browser</span></div>
     </div>
@@ -74,6 +74,6 @@
 
 <section class="how-section" id="how"><div class="eyebrow">SIMPLE AS 1, 2, 3</div><h2>Great images in <span>three steps.</span></h2><div class="steps"><article><span>01</span><h3>Choose your tool</h3><p>Pick the image tool that matches what you need.</p></article><article><span>02</span><h3>Upload your image</h3><p>Select a photo from your phone, tablet or computer.</p></article><article><span>03</span><h3>Download and enjoy</h3><p>Process your image and save the result instantly.</p></article></div></section>
 </main>
-<footer><a class="brand" href="#"><span class="brand-mark">✦</span><span>Background <b>Remove</b> Studio</span></a><p>Simple image editing. Free for everyone.</p><small>© 2026 Background Remove Studio · <a href="https://bgninja.com" target="_blank" rel="noopener noreferrer">Background removal by BGNinja</a></small></footer>
-<script src="script.js?v=single-ai-fast-2"></script>
+<footer><a class="brand" href="#"><span class="brand-mark">✦</span><span>Background <b>Remove</b> Studio</span></a><p>Simple image editing. Free for everyone.</p><small>© 2026 Background Remove Studio</small></footer>
+<script src="script.js?v=birefnet-local-3"></script>
 </body></html>
