@@ -71,7 +71,7 @@ async function showFile(file){
     sourceUrl&&URL.revokeObjectURL(sourceUrl);sourceUrl=URL.createObjectURL(sourceFile);
     preview.src="";sourcePreview.src=sourceUrl;$("#result-placeholder").classList.remove("hidden");$(".compare-grid").classList.remove("has-result");sourceImage=new Image();
     await new Promise((resolve,reject)=>{sourceImage.onload=resolve;sourceImage.onerror=()=>reject(new Error("This image format is not supported by your browser."));sourceImage.src=sourceUrl;});
-    $("#width-input").value=sourceImage.naturalWidth;$("#height-input").value=sourceImage.naturalHeight;
+    $("#width-input").value=sourceImage.naturalWidth;$("#height-input").value=sourceImage.naturalHeight;$("#output-width").value=sourceImage.naturalWidth;$("#output-height").value=sourceImage.naturalHeight;
     upload.classList.add("hidden");edit.classList.remove("hidden");
     $("#result-actions").classList.add("hidden");$("#error-message").classList.add("hidden");
   }catch(err){console.error("Image decoding/opening failed:",err);showError("Could not open this image in the browser. Try another copy of the file, or export it as JPG/PNG. Details: "+(err?.message||"unknown decoding error"));}
@@ -87,6 +87,10 @@ $("#bg-color").addEventListener("input",e=>$("#color-value").textContent=e.targe
 $("#quality-input").addEventListener("input",e=>$("#quality-value").textContent=e.target.value+"%");
 $("#width-input").addEventListener("input",()=>{if($("#keep-ratio").checked&&sourceImage?.naturalWidth){$("#height-input").value=Math.round(+$("#width-input").value*sourceImage.naturalHeight/sourceImage.naturalWidth)}});
 $("#height-input").addEventListener("input",()=>{if($("#keep-ratio").checked&&sourceImage?.naturalHeight){$("#width-input").value=Math.round(+$("#height-input").value*sourceImage.naturalWidth/sourceImage.naturalHeight)}});
+$("#resize-output").addEventListener("change",e=>$("#output-dimensions").classList.toggle("hidden",!e.target.checked));
+$("#output-width").addEventListener("input",()=>{if($("#keep-ratio").checked&&sourceImage?.naturalWidth)$("#output-height").value=Math.round(+$("#output-width").value*sourceImage.naturalHeight/sourceImage.naturalWidth)});
+$("#output-height").addEventListener("input",()=>{if($("#keep-ratio").checked&&sourceImage?.naturalHeight)$("#output-width").value=Math.round(+$("#output-height").value*sourceImage.naturalWidth/sourceImage.naturalHeight)});
+
 function progress(show,msg="Processing image…",percent=0){
   $("#progress").classList.toggle("hidden",!show);
   $("#progress-text").textContent=msg;
@@ -140,7 +144,21 @@ if(activeTool==="remove"){$("#result-placeholder").classList.remove("hidden");$(
 progress(true,"Preparing image…",5);try{let blob,filename="edited-image.png";
 if(activeTool==="remove"||activeTool==="change"){progress(true,"Loading free AI background remover…",8);const cutout=await removeBg(sourceFile);if(activeTool==="remove"){blob=cutout;filename="background-removed.png";}else{progress(true,"Applying new background…",88);const cutImage=await createImageBitmap(cutout);const c=document.createElement("canvas");c.width=cutImage.width;c.height=cutImage.height;const ctx=c.getContext("2d");ctx.fillStyle=$("#bg-color").value;ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(cutImage,0,0);blob=await canvasBlob(c,"image/png");filename="background-changed.png";}}
 else{progress(true,"Editing your image…",30);const c=document.createElement("canvas"),ctx=c.getContext("2d");if(activeTool==="resize"){const w=Math.round(+$("#width-input").value),h=Math.round(+$("#height-input").value);if(!w||!h||w>8000||h>8000)throw new Error("Enter a width and height between 1 and 8000 pixels.");c.width=w;c.height=h;ctx.drawImage(sourceImage,0,0,w,h);blob=await canvasBlob(c,"image/png");filename="resized-image.png";}else{c.width=sourceImage.naturalWidth;c.height=sourceImage.naturalHeight;ctx.drawImage(sourceImage,0,0);blob=await canvasBlob(c,"image/jpeg",+$("#quality-input").value/100);filename="compressed-image.jpg";}}
-if(resultUrl)URL.revokeObjectURL(resultUrl);outputBlob=blob;resultUrl=URL.createObjectURL(blob);preview.src=resultUrl;$("#result-placeholder").classList.add("hidden");$(".compare-grid").classList.add("has-result");$("#download-btn").href=resultUrl;$("#download-btn").download=filename;$("#result-actions").classList.remove("hidden");$("#preview").alt="Processed image result";$("#preview").scrollIntoView({behavior:"smooth",block:"nearest"});progress(false);$("#setting-heading").textContent="Background removed — preview your image";$("#setting-help").textContent="Download your edited image below."; }catch(err){console.error(err);progress(false);if(activeTool==="remove"){$("#result-placeholder").classList.remove("hidden");$("#result-placeholder").innerHTML='<b>Background removal did not finish</b><small>Please try again with another photo.</small>';}showError((err?.message||"The image could not be processed. Please try another image or a smaller file.")+" (See browser console for technical details.)");}finally{processBtn.disabled=false;processBtn.style.opacity="1";}}
+// Apply optional output dimensions and selected export format after any tool.
+const outBitmap=await createImageBitmap(blob);
+const requestedW=$("#resize-output").checked?Math.round(+$("#output-width").value):outBitmap.width;
+const requestedH=$("#resize-output").checked?Math.round(+$("#output-height").value):outBitmap.height;
+if(!requestedW||!requestedH||requestedW>8000||requestedH>8000){outBitmap.close?.();throw new Error("Output width and height must be between 1 and 8000 pixels.");}
+const exportType=$("#output-format").value;
+const exportCanvas=document.createElement("canvas");exportCanvas.width=requestedW;exportCanvas.height=requestedH;
+const exportCtx=exportCanvas.getContext("2d");
+if(exportType==="image/jpeg"){exportCtx.fillStyle="#ffffff";exportCtx.fillRect(0,0,requestedW,requestedH);}
+exportCtx.drawImage(outBitmap,0,0,requestedW,requestedH);outBitmap.close?.();
+const exportQuality=activeTool==="compress"?Math.max(.1,Math.min(1,+$("#quality-input").value/100)):.92;
+blob=await canvasBlob(exportCanvas,exportType,exportQuality);
+const ext=exportType==="image/jpeg"?"jpg":exportType==="image/webp"?"webp":"png";
+filename="edited-image."+ext;
+if(resultUrl)URL.revokeObjectURL(resultUrl);outputBlob=blob;resultUrl=URL.createObjectURL(blob);preview.src=resultUrl;$("#result-placeholder").classList.add("hidden");$(".compare-grid").classList.add("has-result");$("#download-btn").href=resultUrl;$("#download-btn").download=filename;$("#result-actions").classList.remove("hidden");$("#preview").alt="Processed image result";$("#preview").scrollIntoView({behavior:"smooth",block:"nearest"});progress(false);$("#setting-heading").textContent="Your image is ready";$("#setting-help").textContent="Choose another format or resolution any time, then download."; }catch(err){console.error(err);progress(false);if(activeTool==="remove"){$("#result-placeholder").classList.remove("hidden");$("#result-placeholder").innerHTML='<b>Background removal did not finish</b><small>Please try again with another photo.</small>';}showError((err?.message||"The image could not be processed. Please try another image or a smaller file.")+" (See browser console for technical details.)");}finally{processBtn.disabled=false;processBtn.style.opacity="1";}}
 processBtn.addEventListener("click",run);
 $("#download-btn").addEventListener("click",()=>{if(!outputBlob)return;});
 document.querySelector(".menu-toggle").addEventListener("click",()=>document.querySelector(".site-header nav").classList.toggle("open"));
