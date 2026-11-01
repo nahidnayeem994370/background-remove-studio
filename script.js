@@ -59,7 +59,7 @@ async function decodeToPng(file){
 async function showFile(file){
   if(!file)return;
   if(file.size>25*1024*1024)return showError("This image is larger than 25 MB. Please choose a smaller file.");
-  if(!file.type.startsWith("image/")&&!/\.(jpe?g|png|webp|gif|bmp|avif|heic|heif|tiff?|svg)$/i.test(file.name))return showError("Please choose an image file.");
+  if(!file.type.startsWith("image/")&&!/\.(jpe?g|jfif|png|webp|gif|bmp|avif|heic|heif|tiff?|svg|ico|dib)$/i.test(file.name))return showError("Please choose a supported image file.");
   showError("Loading and converting your image…");
   try{
     const normalized=await decodeToPng(file);
@@ -108,22 +108,50 @@ async function hasTransparentPixels(blob){
   }finally{bitmap.close?.();}
 }
 async function removeBg(file){
-  // BiRefNet runs locally. BG0 automatically chooses full or lite weights
-  // for the visitor's hardware and falls back to WASM where necessary.
-  const mod=await import("https://esm.sh/@bg0/browser");
-  const result=await mod.removeBackground(file,{
-    model:"auto",
-    quality:"quality",
-    onProgress:p=>{
-      const labels={preparing:"Preparing AI…",downloading:"Downloading AI model…",processing:"Detecting subject and removing background…",finishing:"Refining edges…"};
-      const pct=p.progress==null?35:Math.max(8,Math.min(95,Math.round(p.progress*100)));
-      progress(true,labels[p.stage]||p.message||"Processing image…",pct);
+  const failures=[];
+  // Primary: BiRefNet via BG0, the engine already producing the user's preferred result.
+  try{
+    progress(true,"Trying primary BiRefNet AI…",12);
+    const mod=await import("https://esm.sh/@bg0/browser");
+    const result=await mod.removeBackground(file,{
+      model:"auto",
+      quality:"quality",
+      onProgress:p=>{
+        const labels={preparing:"Preparing BiRefNet…",downloading:"Downloading BiRefNet model…",processing:"BiRefNet is detecting the subject…",finishing:"Refining image edges…"};
+        const pct=p.progress==null?35:Math.max(8,Math.min(95,Math.round(p.progress*100)));
+        progress(true,labels[p.stage]||p.message||"Processing with BiRefNet…",pct);
+      }
+    });
+    if(result?.blob && await hasTransparentPixels(result.blob)){
+      console.info("Background removal engine:",result.model,result.provider,"in",result.durationMs,"ms");
+      return result.blob;
     }
-  });
-  if(!result?.blob)throw new Error("The AI did not return an image. Please reload the page and try again.");
-  if(!(await hasTransparentPixels(result.blob)))throw new Error("The AI could not separate the subject clearly in this photo. Try a photo with the subject clearly visible against its background.");
-  console.info("Background removal engine:",result.model,result.provider,"in",result.durationMs,"ms");
-  return result.blob;
+    failures.push("BiRefNet returned an invalid or non-transparent image.");
+  }catch(err){console.warn("BiRefNet engine failed; trying the backup engine.",err);failures.push("BiRefNet: "+(err.message||"failed"));}
+
+  // Backup: IMG.LY IS-Net. It runs locally in the browser; try GPU first,
+  // then CPU for browsers without working WebGPU support.
+  try{
+    progress(true,"Trying backup AI (IMG.LY IS-Net)…",18);
+    const mod=await import("https://esm.sh/@imgly/background-removal@1.5.6");
+    const remove=mod.default||mod.removeBackground;
+    if(typeof remove!=="function")throw new Error("Backup AI module did not load correctly.");
+    let blob;
+    try{
+      blob=await remove(file,{model:"isnet",device:"gpu",output:{format:"image/png",type:"foreground"}});
+    }catch(gpuError){
+      console.warn("IMG.LY GPU inference failed; retrying on CPU.",gpuError);
+      progress(true,"Backup AI is retrying in compatibility mode…",28);
+      blob=await remove(file,{model:"isnet",device:"cpu",output:{format:"image/png",type:"foreground"}});
+    }
+    if(blob && await hasTransparentPixels(blob)){
+      console.info("Background removal engine: IMG.LY IS-Net");
+      return blob;
+    }
+    failures.push("IMG.LY returned an invalid or non-transparent image.");
+  }catch(err){console.error("Both local AI engines failed.",err);failures.push("IMG.LY: "+(err.message||"failed"));}
+
+  throw new Error("Both on-device AI engines could not process this image. "+failures.join(" | "));
 }
 function canvasBlob(canvas,type,quality){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Could not create image. Try another format.")),type,quality));}
 async function run(){if(!sourceFile)return showError("Choose an image first.");processBtn.disabled=true;processBtn.style.opacity=".65";$("#result-actions").classList.add("hidden");$("#error-message").classList.add("hidden");
@@ -131,7 +159,7 @@ if(activeTool==="remove"){$("#result-placeholder").classList.remove("hidden");$(
 progress(true,"Preparing image…",5);try{let blob,filename="edited-image.png";
 if(activeTool==="remove"||activeTool==="change"){progress(true,"Loading free AI background remover…",8);const cutout=await removeBg(sourceFile);if(activeTool==="remove"){blob=cutout;filename="background-removed.png";}else{progress(true,"Applying new background…",88);const cutImage=await createImageBitmap(cutout);const c=document.createElement("canvas");c.width=cutImage.width;c.height=cutImage.height;const ctx=c.getContext("2d");ctx.fillStyle=$("#bg-color").value;ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(cutImage,0,0);blob=await canvasBlob(c,"image/png");filename="background-changed.png";}}
 else{progress(true,"Editing your image…",30);const c=document.createElement("canvas"),ctx=c.getContext("2d");if(activeTool==="resize"){const w=Math.round(+$("#width-input").value),h=Math.round(+$("#height-input").value);if(!w||!h||w>8000||h>8000)throw new Error("Enter a width and height between 1 and 8000 pixels.");c.width=w;c.height=h;ctx.drawImage(sourceImage,0,0,w,h);blob=await canvasBlob(c,"image/png");filename="resized-image.png";}else{c.width=sourceImage.naturalWidth;c.height=sourceImage.naturalHeight;ctx.drawImage(sourceImage,0,0);blob=await canvasBlob(c,"image/jpeg",+$("#quality-input").value/100);filename="compressed-image.jpg";}}
-if(resultUrl)URL.revokeObjectURL(resultUrl);outputBlob=blob;resultUrl=URL.createObjectURL(blob);preview.src=resultUrl;$("#result-placeholder").classList.add("hidden");$(".compare-grid").classList.add("has-result");$("#download-btn").href=resultUrl;$("#download-btn").download=filename;$("#result-actions").classList.remove("hidden");$("#preview").alt="Processed image result";$("#preview").scrollIntoView({behavior:"smooth",block:"nearest"});progress(false);$("#setting-heading").textContent="Background removed — preview your image";$("#setting-help").textContent="Download your edited image below."; }catch(err){console.error(err);progress(false);if(activeTool==="remove"){$("#result-placeholder").classList.remove("hidden");$("#result-placeholder").innerHTML='<b>Background removal did not finish</b><small>Please try again with another photo.</small>';}showError(/decode|decod|image format|unsupported/i.test(err.message||"")?"This format could not be decoded by your browser. Try JPG, PNG, WEBP, GIF, BMP, AVIF, HEIC/HEIF, TIFF or SVG.":(err.message||"The image could not be processed. Please try another image or a smaller file."));}finally{processBtn.disabled=false;processBtn.style.opacity="1";}}
+if(resultUrl)URL.revokeObjectURL(resultUrl);outputBlob=blob;resultUrl=URL.createObjectURL(blob);preview.src=resultUrl;$("#result-placeholder").classList.add("hidden");$(".compare-grid").classList.add("has-result");$("#download-btn").href=resultUrl;$("#download-btn").download=filename;$("#result-actions").classList.remove("hidden");$("#preview").alt="Processed image result";$("#preview").scrollIntoView({behavior:"smooth",block:"nearest"});progress(false);$("#setting-heading").textContent="Background removed — preview your image";$("#setting-help").textContent="Download your edited image below."; }catch(err){console.error(err);progress(false);if(activeTool==="remove"){$("#result-placeholder").classList.remove("hidden");$("#result-placeholder").innerHTML='<b>Background removal did not finish</b><small>Please try again with another photo.</small>';}showError(/decode|decod|image format|unsupported/i.test(err.message||"")?(err.message||"This image could not be decoded. Try exporting it as PNG or JPG."):(err.message||"The image could not be processed. Please try another image or a smaller file."));}finally{processBtn.disabled=false;processBtn.style.opacity="1";}}
 processBtn.addEventListener("click",run);
 $("#download-btn").addEventListener("click",()=>{if(!outputBlob)return;});
 document.querySelector(".menu-toggle").addEventListener("click",()=>document.querySelector(".site-header nav").classList.toggle("open"));
