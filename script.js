@@ -107,7 +107,6 @@ function progress(show,msg="Processing image…",percent=0){
     placeholder.innerHTML='<span class="loading-spinner" aria-hidden="true"></span><b>Loading…</b><small>'+msg+'</small>';
   }
 }
-const AI_CONFIG={model:"isnet_fp16",output:{format:"image/png",type:"foreground"},progress:(key,current,total)=>{if(total){const pct=Math.round(current/total*100);progress(true,"Loading backup AI model… "+pct+"%",Math.min(95,pct));}}};
 async function hasTransparentPixels(blob){
   const bitmap=await createImageBitmap(blob);
   try{
@@ -124,7 +123,6 @@ async function hasTransparentPixels(blob){
 async function removeBg(file){
   // If the page is already warming the model, reuse that session instead of
   // starting a second inference at the same time on a memory-limited phone.
-  if(aiPreloadPromise) await aiPreloadPromise;
   // BiRefNet runs locally. BG0 automatically chooses full or lite weights
   // for the visitor's hardware and falls back to WASM where necessary.
   const mod=await import("https://esm.sh/@bg0/browser");
@@ -196,44 +194,9 @@ $("#download-btn").addEventListener("click",()=>{if(!outputBlob)return;});
 document.querySelector(".menu-toggle").addEventListener("click",()=>document.querySelector(".site-header nav").classList.toggle("open"));
 setTool("remove");
 
-// Preload the background-removal engines after the page opens.
-// Model files are cached by the browser; first-time visitors may download
-// a substantial amount of data. Engines are warmed sequentially to reduce
-// memory pressure on Android devices.
-let aiPreloadPromise = null;
+// Load BiRefNet only when the visitor starts an AI tool.
+// This keeps the initial page light while preserving the same model and quality.
 const preloadStatus = document.getElementById("ai-preload-status");
-function setPreloadStatus(message) {
-  if (preloadStatus) preloadStatus.textContent = message;
-}
-async function warmBg0Model() {
-  // Warm the same automatic BiRefNet path and quality pipeline used for
-  // real photos. This loads the selected model/runtime into this page session.
-  const mod=await import("https://esm.sh/@bg0/browser");
-  const canvas=document.createElement("canvas");
-  canvas.width=256;canvas.height=256;
-  const ctx=canvas.getContext("2d");
-  ctx.fillStyle="#e9eef5";ctx.fillRect(0,0,256,256);
-  ctx.fillStyle="#243b53";ctx.beginPath();ctx.arc(128,128,58,0,Math.PI*2);ctx.fill();
-  const sample=await canvasBlob(canvas,"image/png");
-  await mod.removeBackground(
-    new File([sample],"model-warmup.png",{type:"image/png"}),
-    {model:"auto",quality:"quality"}
-  );
-}
-async function preloadAiModels() {
-  setPreloadStatus("Loading the background-removal AI…");
-  try {
-    await warmBg0Model();
-    setPreloadStatus("AI is ready. Upload an image.");
-  } catch (error) {
-    console.warn("BiRefNet preloading failed; it will retry when you remove a background.", error);
-    setPreloadStatus("AI will finish loading when you start Background Remove.");
-  }
-}
-// Start model download as soon as the document is ready; do not wait for
-// every page asset. The browser caches model files for later visits.
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => { aiPreloadPromise = preloadAiModels(); }, { once: true });
-} else {
-  aiPreloadPromise = preloadAiModels();
+if (preloadStatus) {
+  preloadStatus.textContent = "AI loads when you start Background Remove.";
 }
