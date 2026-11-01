@@ -154,4 +154,79 @@ processBtn.addEventListener("click",run);
 $("#download-btn").addEventListener("click",()=>{if(!outputBlob)return;});
 document.querySelector(".menu-toggle").addEventListener("click",()=>document.querySelector(".site-header nav").classList.toggle("open"));
 setTool("remove");
-// AI models are loaded on demand to avoid downloading a redundant model on page entry.
+
+// Preload the background-removal engines after the page opens.
+// Model files are cached by the browser; first-time visitors may download
+// a substantial amount of data. Engines are warmed sequentially to reduce
+// memory pressure on Android devices.
+const preloadStatus = document.getElementById("ai-preload-status");
+function setPreloadStatus(message) {
+  if (preloadStatus) preloadStatus.textContent = message;
+}
+function loadBgRemoveSdk() {
+  if (window.BgRemove?.preload) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-bgremove-sdk]');
+    if (existing) {
+      existing.addEventListener("load", resolve, { once: true });
+      existing.addEventListener("error", () => reject(new Error("SDK unavailable")), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://bgremovers.org/sdk/v1.js";
+    script.async = true;
+    script.dataset.bgremoveSdk = "1";
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("SDK unavailable"));
+    document.head.appendChild(script);
+  });
+}
+async function warmBg0Model() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#dcecff";
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.fillStyle = "#263f70";
+  ctx.beginPath();
+  ctx.arc(128, 128, 70, 0, Math.PI * 2);
+  ctx.fill();
+  const sample = await canvasBlob(canvas, "image/png");
+  const file = new File([sample], "model-warmup.png", { type: "image/png" });
+  await (await import("https://esm.sh/@bg0/browser")).removeBackground(file, {
+    quality: "quality",
+    onProgress: p => {
+      if (p?.progress != null) setPreloadStatus("Downloading AI model 1/3… " + Math.round(p.progress * 100) + "%");
+    }
+  });
+}
+async function preloadAiModels() {
+  setPreloadStatus("Downloading AI model 1/3 (BiRefNet)…");
+  try {
+    await warmBg0Model();
+  } catch (error) {
+    console.warn("BG0 model preloading failed; it will retry when needed.", error);
+  }
+  setPreloadStatus("Downloading AI model 2/3 (ISNet)…");
+  try {
+    const imgly = await import("https://esm.sh/@imgly/background-removal@1.7.0");
+    if (typeof imgly.preload === "function") await imgly.preload(AI_CONFIG);
+    else throw new Error("ISNet preload is unavailable.");
+  } catch (error) {
+    console.warn("ISNet model preloading failed; it will load on first use.", error);
+  }
+  setPreloadStatus("Downloading AI model 3/3 (RMBG)…");
+  try {
+    await loadBgRemoveSdk();
+    if (typeof window.BgRemove?.preload !== "function") throw new Error("RMBG preload is unavailable.");
+    await window.BgRemove.preload();
+  } catch (error) {
+    console.warn("RMBG model preloading failed; it will load on first use.", error);
+  }
+  setPreloadStatus("AI model preparation finished. Upload an image when ready.");
+}
+window.addEventListener("load", () => {
+  // Start automatically on entry, after the page's visible content has loaded.
+  preloadAiModels();
+}, { once: true });
