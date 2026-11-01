@@ -110,6 +110,9 @@ async function hasTransparentPixels(blob){
   }finally{bitmap.close?.();}
 }
 async function removeBg(file){
+  // If the page is already warming the model, reuse that session instead of
+  // starting a second inference at the same time on a memory-limited phone.
+  if(aiPreloadPromise) await aiPreloadPromise;
   // BiRefNet runs locally. BG0 automatically chooses full or lite weights
   // for the visitor's hardware and falls back to WASM where necessary.
   const mod=await import("https://esm.sh/@bg0/browser");
@@ -143,6 +146,7 @@ setTool("remove");
 // Model files are cached by the browser; first-time visitors may download
 // a substantial amount of data. Engines are warmed sequentially to reduce
 // memory pressure on Android devices.
+let aiPreloadPromise = null;
 const preloadStatus = document.getElementById("ai-preload-status");
 function setPreloadStatus(message) {
   if (preloadStatus) preloadStatus.textContent = message;
@@ -175,7 +179,7 @@ async function preloadAiModels() {
 // Start model download as soon as the document is ready; do not wait for
 // every page asset. The browser caches model files for later visits.
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", preloadAiModels, { once: true });
+  document.addEventListener("DOMContentLoaded", () => { aiPreloadPromise = preloadAiModels(); }, { once: true });
 } else {
-  preloadAiModels();
+  aiPreloadPromise = preloadAiModels();
 }
