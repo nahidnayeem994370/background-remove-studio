@@ -72,3 +72,7 @@
 
 .privacy-note{margin:12px 23px 0;color:#7c879b;font-size:10px;line-height:1.5;text-align:center}
 @media(max-width:560px){.privacy-note{margin:10px 6px 0;font-size:9px}}
+
+.export-settings select{display:block;width:100%;max-width:100%;margin:8px 0 12px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit;font-size:13px}
+.export-settings>small{display:block;color:var(--muted);font-size:11px;line-height:1.5;margin-top:8px}
+#output-dimensions{margin-top:10px}
