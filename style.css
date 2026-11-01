@@ -89,3 +89,10 @@
 .custom-swatch{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer}
 .custom-swatch input{width:34px;height:34px;padding:0;border:0;background:transparent;cursor:pointer}
 @media(max-width:560px){.background-palette{padding:12px}.palette-options{gap:10px}.swatch{width:32px;height:32px;flex-basis:32px}}
+
+/* Download action appears directly below the processed image. */
+.hero .result-actions{display:flex;flex-direction:column;align-items:center;gap:7px;width:100%;margin:12px auto 18px;padding:12px 14px;background:#fff;border:1px solid #e5eaff;border-radius:12px;box-shadow:0 10px 28px #26375c16;animation:download-rise .38s ease-out both}
+.hero .result-actions.hidden{display:none!important}
+.hero .result-actions .success-msg{margin:0;font-size:11px}
+.hero .result-actions .download-btn{width:min(100%,360px);padding:13px 18px;border-radius:9px;box-shadow:0 6px 16px #1eb98730}
+@keyframes download-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
