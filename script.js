@@ -1,7 +1,7 @@
 const $=s=>document.querySelector(s);
 const toolNames={remove:"Background Remove",change:"Background Changer",resize:"Image Resize",compress:"Image Compress"};
 const toolDescriptions={remove:"Remove image background automatically",change:"Cut out your subject and choose a new background",resize:"Resize your image to exact dimensions",compress:"Make your image file smaller"};
-let activeTool="remove",sourceFile=null,sourceUrl=null,resultUrl=null,sourceImage=null,outputBlob=null;
+let activeTool="remove",sourceFile=null,sourceUrl=null,resultUrl=null,sourceImage=null,outputBlob=null,cutoutBlob=null,selectedBgColor=null;
 const fileInput=$("#file-input"),upload=$("#upload-panel"),edit=$("#edit-panel"),preview=$("#preview"),sourcePreview=$("#source-preview"),processBtn=$("#process-btn");
 function setTool(tool){const previousTool=activeTool;activeTool=tool;if(tool==="compress"&&previousTool!=="compress")$("#output-format").value="image/jpeg";else if(previousTool==="compress"&&tool!=="compress"&&$("#output-format").value==="image/jpeg")$("#output-format").value="image/png";document.querySelectorAll("[data-tool]").forEach(b=>b.classList.toggle("active",b.dataset.tool===tool));document.querySelectorAll(".tool-card").forEach(b=>b.classList.toggle("selected",b.dataset.tool===tool));$("#active-title").textContent=toolNames[tool];$("#active-desc").textContent=toolDescriptions[tool];$("#setting-heading").textContent=tool==="remove"?"Ready to remove?":tool==="change"?"Choose a new background":"Ready to edit?";$("#setting-help").textContent=tool==="remove"?"AI will detect the subject and remove the background.":tool==="change"?"AI will isolate the subject before applying your chosen color.": "Your original image will be kept unchanged.";$("#change-settings").classList.toggle("hidden",tool!=="change");$("#resize-settings").classList.toggle("hidden",tool!=="resize");$("#compress-settings").classList.toggle("hidden",tool!=="compress");processBtn.innerHTML=({remove:"Remove background",change:"Change background",resize:"Resize image",compress:"Compress image"}[tool])+" <span>→</span>";$("#result-actions").classList.add("hidden");$("#error-message").classList.add("hidden");if(outputBlob){outputBlob=null;if(resultUrl)URL.revokeObjectURL(resultUrl);resultUrl=null;}}
 async function decodeToPng(file){
@@ -62,6 +62,12 @@ async function decodeToPng(file){
 }
 async function showFile(file){
   if(!file)return;
+  cutoutBlob=null;selectedBgColor=null;
+  processBtn.innerHTML='Remove background <span>→</span>';
+  $("#choose-another").classList.remove("hidden");
+  $("#background-palette").classList.add("hidden");
+  document.querySelectorAll(".swatch").forEach(b=>b.classList.toggle("selected",b.dataset.bg==="transparent"));
+
   if(file.size>25*1024*1024)return showError("This image is larger than 25 MB. Please choose a smaller file.");
   if(!file.type.startsWith("image/")&&!/\.(jpe?g|jfif|png|webp|gif|bmp|dib|avif|heic|heif|tiff?|svg|ico)$/i.test(file.name))return showError("Please choose an image file.");
   showError("Loading and converting your image…");
@@ -142,7 +148,7 @@ function canvasBlob(canvas,type,quality){return new Promise((resolve,reject)=>ca
 async function run(){if(!sourceFile)return showError("Choose an image first.");processBtn.disabled=true;processBtn.style.opacity=".65";$("#result-actions").classList.add("hidden");$("#error-message").classList.add("hidden");
 if(activeTool==="remove"){$("#result-placeholder").classList.remove("hidden");$("#result-placeholder").innerHTML='<span class="loading-spinner" aria-hidden="true"></span><b>Loading…</b><small>Preparing AI background removal</small>';}
 progress(true,"Preparing image…",5);try{let blob,filename="edited-image.png";
-if(activeTool==="remove"||activeTool==="change"){progress(true,"Loading free AI background remover…",8);const cutout=await removeBg(sourceFile);if(activeTool==="remove"){blob=cutout;filename="background-removed.png";}else{progress(true,"Applying new background…",88);const cutImage=await createImageBitmap(cutout);const c=document.createElement("canvas");c.width=cutImage.width;c.height=cutImage.height;const ctx=c.getContext("2d");ctx.fillStyle=$("#bg-color").value;ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(cutImage,0,0);blob=await canvasBlob(c,"image/png");filename="background-changed.png";}}
+if(activeTool==="remove"||activeTool==="change"){progress(true,"Loading free AI background remover…",8);const cutout=await removeBg(sourceFile);if(activeTool==="remove"){cutoutBlob=cutout;selectedBgColor=null;blob=cutout;filename="background-removed.png";}else{progress(true,"Applying new background…",88);const cutImage=await createImageBitmap(cutout);const c=document.createElement("canvas");c.width=cutImage.width;c.height=cutImage.height;const ctx=c.getContext("2d");ctx.fillStyle=$("#bg-color").value;ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(cutImage,0,0);blob=await canvasBlob(c,"image/png");filename="background-changed.png";}}
 else{progress(true,"Editing your image…",30);const c=document.createElement("canvas"),ctx=c.getContext("2d");if(activeTool==="resize"){const w=Math.round(+$("#width-input").value),h=Math.round(+$("#height-input").value);if(!w||!h||w>8000||h>8000)throw new Error("Enter a width and height between 1 and 8000 pixels.");c.width=w;c.height=h;ctx.drawImage(sourceImage,0,0,w,h);blob=await canvasBlob(c,"image/png");filename="resized-image.png";}else{c.width=sourceImage.naturalWidth;c.height=sourceImage.naturalHeight;ctx.drawImage(sourceImage,0,0);blob=await canvasBlob(c,"image/jpeg",+$("#quality-input").value/100);filename="compressed-image.jpg";}}
 // Apply optional output dimensions and selected export format after any tool.
 const outBitmap=await createImageBitmap(blob);
@@ -158,8 +164,34 @@ const exportQuality=activeTool==="compress"?Math.max(.1,Math.min(1,+$("#quality-
 blob=await canvasBlob(exportCanvas,exportType,exportQuality);
 const ext=exportType==="image/jpeg"?"jpg":exportType==="image/webp"?"webp":"png";
 filename="edited-image."+ext;
-if(resultUrl)URL.revokeObjectURL(resultUrl);outputBlob=blob;resultUrl=URL.createObjectURL(blob);preview.src=resultUrl;$("#result-placeholder").classList.add("hidden");$(".compare-grid").classList.add("has-result");$("#download-btn").href=resultUrl;$("#download-btn").download=filename;$("#result-actions").classList.remove("hidden");$("#preview").alt="Processed image result";$("#preview").scrollIntoView({behavior:"smooth",block:"nearest"});progress(false);$("#setting-heading").textContent="Your image is ready";$("#setting-help").textContent="Choose another format or resolution any time, then download."; }catch(err){console.error(err);progress(false);if(activeTool==="remove"){$("#result-placeholder").classList.remove("hidden");$("#result-placeholder").innerHTML='<b>Background removal did not finish</b><small>Please try again with another photo.</small>';}showError((err?.message||"The image could not be processed. Please try another image or a smaller file.")+" (See browser console for technical details.)");}finally{processBtn.disabled=false;processBtn.style.opacity="1";}}
-processBtn.addEventListener("click",run);
+if(resultUrl)URL.revokeObjectURL(resultUrl);outputBlob=blob;resultUrl=URL.createObjectURL(blob);preview.src=resultUrl;$("#result-placeholder").classList.add("hidden");$(".compare-grid").classList.add("has-result");$("#download-btn").href=resultUrl;$("#download-btn").download=filename;$("#result-actions").classList.remove("hidden");$("#preview").alt="Processed image result";$("#preview").scrollIntoView({behavior:"smooth",block:"nearest"});progress(false);$("#setting-heading").textContent="Your image is ready";$("#setting-help").textContent="Choose a background color below or download the transparent image.";if(activeTool==="remove"&&cutoutBlob){$("#background-palette").classList.remove("hidden");processBtn.innerHTML="Choose another image <span>↗</span>";$("#choose-another").classList.add("hidden");} }catch(err){console.error(err);progress(false);if(activeTool==="remove"){$("#result-placeholder").classList.remove("hidden");$("#result-placeholder").innerHTML='<b>Background removal did not finish</b><small>Please try again with another photo.</small>';}showError((err?.message||"The image could not be processed. Please try another image or a smaller file.")+" (See browser console for technical details.)");}finally{processBtn.disabled=false;processBtn.style.opacity="1";}}
+
+async function renderCutoutBackground(color){
+  if(!cutoutBlob)return;
+  selectedBgColor=color==="transparent"?null:color;
+  const bitmap=await createImageBitmap(cutoutBlob);
+  const w=$("#resize-output").checked?Math.round(+$("#output-width").value):bitmap.width;
+  const h=$("#resize-output").checked?Math.round(+$("#output-height").value):bitmap.height;
+  if(!w||!h||w>8000||h>8000){bitmap.close?.();showError("Output width and height must be between 1 and 8000 pixels.");return;}
+  const type=$("#output-format").value;
+  const canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext("2d");
+  if(selectedBgColor){ctx.fillStyle=selectedBgColor;ctx.fillRect(0,0,w,h);}
+  else if(type==="image/jpeg"){ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);}
+  ctx.drawImage(bitmap,0,0,w,h);bitmap.close?.();
+  const q=activeTool==="compress"?Math.max(.1,Math.min(1,+$("#quality-input").value/100)):.92;
+  const blob=await canvasBlob(canvas,type,q);
+  const ext=type==="image/jpeg"?"jpg":type==="image/webp"?"webp":"png";
+  if(resultUrl)URL.revokeObjectURL(resultUrl);
+  outputBlob=blob;resultUrl=URL.createObjectURL(blob);
+  preview.src=resultUrl;$("#download-btn").href=resultUrl;$("#download-btn").download="background-edited."+ext;
+  $("#result-actions").classList.remove("hidden");
+  document.querySelectorAll(".swatch").forEach(b=>b.classList.toggle("selected",b.dataset.bg===(color||"transparent")));
+}
+document.querySelectorAll(".swatch").forEach(button=>button.addEventListener("click",()=>renderCutoutBackground(button.dataset.bg)));
+$("#custom-bg-color").addEventListener("input",e=>renderCutoutBackground(e.target.value));
+processBtn.addEventListener("click",()=>{if(activeTool==="remove"&&cutoutBlob){fileInput.click();return;}run();});
+
 $("#download-btn").addEventListener("click",()=>{if(!outputBlob)return;});
 document.querySelector(".menu-toggle").addEventListener("click",()=>document.querySelector(".site-header nav").classList.toggle("open"));
 setTool("remove");
