@@ -74,80 +74,28 @@ async function hasTransparentPixels(blob){
     const ctx=canvas.getContext("2d",{willReadFrequently:true});ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
     const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
     let transparent=0,visible=0;
-    for(let i=3;i<pixels.length;i+=4){
-      if(pixels[i]<245)transparent++;
-      if(pixels[i]>16)visible++;
-    }
+    for(let i=3;i<pixels.length;i+=4){if(pixels[i]<250)transparent++;if(pixels[i]>8)visible++;}
     const total=pixels.length/4;
-    // Reject both an opaque full-frame image and an empty/fully transparent mask.
-    return transparent/total>0.015 && visible/total>0.002;
+    return transparent/total>0.0001 && visible/total>0.001;
   }finally{bitmap.close?.();}
 }
 async function removeBg(file){
-  // BG0 automatically selects WebGPU or WebAssembly, so Android browsers are not
-  // forced onto the old low-quality model just because WebGPU is unavailable.
-  let firstError=null;
-  try{
-    const mod=await import("https://esm.sh/@bg0/browser");
-    const result=await mod.removeBackground(file,{quality:"quality",onProgress:p=>{
-      const labels={preparing:"Preparing AI…",downloading:"Loading AI model…",processing:"Removing background…",finishing:"Smoothing image edges…"};
+  // BiRefNet runs locally. BG0 automatically chooses full or lite weights
+  // for the visitor's hardware and falls back to WASM where necessary.
+  const mod=await import("https://esm.sh/@bg0/browser");
+  const result=await mod.removeBackground(file,{
+    model:"auto",
+    quality:"quality",
+    onProgress:p=>{
+      const labels={preparing:"Preparing AI…",downloading:"Downloading AI model…",processing:"Detecting subject and removing background…",finishing:"Refining edges…"};
       const pct=p.progress==null?35:Math.max(8,Math.min(95,Math.round(p.progress*100)));
       progress(true,labels[p.stage]||p.message||"Processing image…",pct);
-    }});
-    if(result?.blob&&await hasTransparentPixels(result.blob))return result.blob;
-    firstError=new Error("The AI did not produce a transparent cutout.");
-  }catch(error){firstError=error;console.warn("BG0 AI failed; trying the backup model.",error);}
-  try{
-    const mod=await import("https://esm.sh/@imgly/background-removal@1.7.0");
-    const remove=mod.removeBackground||mod.default;
-    const blob=await remove(file,AI_CONFIG);
-    if(await hasTransparentPixels(blob))return blob;
-    throw new Error("No transparent background was detected in the result.");
-  }catch(error){console.warn("ISNet backup failed; trying the browser SDK.",error);}
-  // Third engine: BgRemove's browser SDK (RMBG-1.4). It runs on the visitor's
-  // device and does not upload the photo.
-  try{
-    progress(true,"Trying another free AI model…",72);
-    if(!window.BgRemove){
-      await new Promise((resolve,reject)=>{
-        const existing=document.querySelector('script[data-bgremove-sdk]');
-        if(existing){existing.addEventListener("load",resolve,{once:true});existing.addEventListener("error",()=>reject(new Error("SDK unavailable")),{once:true});return;}
-        const script=document.createElement("script");
-        script.src="https://bgremovers.org/sdk/v1.js";script.async=true;script.dataset.bgremoveSdk="1";
-        script.onload=resolve;script.onerror=()=>reject(new Error("SDK unavailable"));
-        document.head.appendChild(script);
-      });
     }
-    if(!window.BgRemove?.removeBackground)throw new Error("Browser SDK did not load.");
-    const blob=await window.BgRemove.removeBackground(file,{maxDimension:4096,onProgress:p=>{
-      const pct=p?.progress==null?78:Math.max(72,Math.min(94,Math.round(p.progress*100)));
-      progress(true,"Trying browser AI model…",pct);
-    }});
-    if(blob&&await hasTransparentPixels(blob))return blob;
-    throw new Error("Browser SDK did not return a transparent image.");
-  }catch(error){console.warn("BgRemove browser SDK failed; trying free online services.",error);}
-  // Last-resort free hosted APIs. These receive the image only after all
-  // on-device AI engines fail. Both providers return a transparent PNG.
-  const hosted=[
-    {name:"BgRemove free service",url:"https://bgremovers.org/api/v1/remove-background",field:"image"},
-    {name:"BGNinja free service",url:"https://bgninja.com/api/remove",field:"file"}
-  ];
-  for(let i=0;i<hosted.length;i++){
-    const provider=hosted[i];
-    try{
-      progress(true,"Trying "+provider.name+"…",82+i*6);
-      const form=new FormData();form.append(provider.field,file,file.name||"image.png");
-      if(provider.name==="BGNinja free service")form.append("src","background-remove-studio");
-      const response=await fetch(provider.url,{method:"POST",body:form});
-      if(!response.ok)throw new Error(provider.name+" returned HTTP "+response.status);
-      const blob=await response.blob();
-      if(!blob.type.includes("image"))throw new Error(provider.name+" returned an invalid response.");
-      if(await hasTransparentPixels(blob))return blob;
-      throw new Error(provider.name+" returned an image without transparency.");
-    }catch(error){console.warn(provider.name+" failed; trying next option.",error);}
-  }
-  console.error("All background-removal engines failed.",firstError);
-  throw new Error("All free AI engines are unavailable right now. Please try again later or use a clearer photo.");
+  });
+  if(!result?.blob)throw new Error("The AI did not return an image. Please reload the page and try again.");
+  if(!(await hasTransparentPixels(result.blob)))throw new Error("The AI could not separate the subject clearly in this photo. Try a photo with the subject clearly visible against its background.");
+  console.info("Background removal engine:",result.model,result.provider,"in",result.durationMs,"ms");
+  return result.blob;
 }
 function canvasBlob(canvas,type,quality){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Could not create image. Try another format.")),type,quality));}
 async function run(){if(!sourceFile)return showError("Choose an image first.");processBtn.disabled=true;processBtn.style.opacity=".65";$("#result-actions").classList.add("hidden");$("#error-message").classList.add("hidden");
@@ -169,49 +117,22 @@ const preloadStatus = document.getElementById("ai-preload-status");
 function setPreloadStatus(message) {
   if (preloadStatus) preloadStatus.textContent = message;
 }
-function loadBgRemoveSdk() {
-  if (window.BgRemove?.preload) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-bgremove-sdk]');
-    if (existing) {
-      existing.addEventListener("load", resolve, { once: true });
-      existing.addEventListener("error", () => reject(new Error("SDK unavailable")), { once: true });
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://bgremovers.org/sdk/v1.js";
-    script.async = true;
-    script.dataset.bgremoveSdk = "1";
-    script.onload = resolve;
-    script.onerror = () => reject(new Error("SDK unavailable"));
-    document.head.appendChild(script);
-  });
-}
 async function warmBg0Model() {
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 256;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#dcecff";
-  ctx.fillRect(0, 0, 256, 256);
-  ctx.fillStyle = "#263f70";
-  ctx.beginPath();
-  ctx.arc(128, 128, 70, 0, Math.PI * 2);
-  ctx.fill();
-  const sample = await canvasBlob(canvas, "image/png");
-  const file = new File([sample], "model-warmup.png", { type: "image/png" });
-  await (await import("https://esm.sh/@bg0/browser")).removeBackground(file, {
-    quality: "quality",
-    onProgress: p => {
-      if (p?.progress != null) setPreloadStatus("Downloading AI model 1/3… " + Math.round(p.progress * 100) + "%");
-    }
-  });
+  const mod=await import("https://esm.sh/@bg0/browser");
+  if(typeof mod.prepareBackgroundRemoval==="function"){
+    await mod.prepareBackgroundRemoval({model:"auto"});
+  } else {
+    const canvas=document.createElement("canvas");canvas.width=64;canvas.height=64;
+    const ctx=canvas.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,64,64);
+    const sample=await canvasBlob(canvas,"image/png");
+    await mod.removeBackground(new File([sample],"warmup.png",{type:"image/png"}),{model:"auto",quality:"fast"});
+  }
 }
 async function preloadAiModels() {
-  setPreloadStatus("Preparing the main AI model (BiRefNet)…");
+  setPreloadStatus("Preparing free on-device BiRefNet AI…");
   try {
     await warmBg0Model();
-    setPreloadStatus("Main AI model is ready. Upload an image.");
+    setPreloadStatus("AI model ready. Upload an image.");
   } catch (error) {
     console.warn("BiRefNet preloading failed; it will retry when you remove a background.", error);
     setPreloadStatus("AI model will load when you start Background Remove.");
