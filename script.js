@@ -71,10 +71,16 @@ async function hasTransparentPixels(blob){
   try{
     const scale=Math.min(1,256/Math.max(bitmap.width,bitmap.height));
     const canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
-    const ctx=canvas.getContext("2d",{willReadFrequently:true});ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
-    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;let transparent=0;
-    for(let i=3;i<pixels.length;i+=4)if(pixels[i]<245)transparent++;
-    return transparent>0;
+    const ctx=canvas.getContext("2d",{willReadFrequently:true});ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+    let transparent=0,visible=0;
+    for(let i=3;i<pixels.length;i+=4){
+      if(pixels[i]<245)transparent++;
+      if(pixels[i]>16)visible++;
+    }
+    const total=pixels.length/4;
+    // Reject both an opaque full-frame image and an empty/fully transparent mask.
+    return transparent/total>0.015 && visible/total>0.002;
   }finally{bitmap.close?.();}
 }
 async function removeBg(file){
@@ -202,29 +208,14 @@ async function warmBg0Model() {
   });
 }
 async function preloadAiModels() {
-  setPreloadStatus("Downloading AI model 1/3 (BiRefNet)…");
+  setPreloadStatus("Preparing the main AI model (BiRefNet)…");
   try {
     await warmBg0Model();
+    setPreloadStatus("Main AI model is ready. Upload an image.");
   } catch (error) {
-    console.warn("BG0 model preloading failed; it will retry when needed.", error);
+    console.warn("BiRefNet preloading failed; it will retry when you remove a background.", error);
+    setPreloadStatus("AI model will load when you start Background Remove.");
   }
-  setPreloadStatus("Downloading AI model 2/3 (ISNet)…");
-  try {
-    const imgly = await import("https://esm.sh/@imgly/background-removal@1.7.0");
-    if (typeof imgly.preload === "function") await imgly.preload({ model: "isnet_fp16", output: { format: "image/png", type: "foreground" } });
-    else throw new Error("ISNet preload is unavailable.");
-  } catch (error) {
-    console.warn("ISNet model preloading failed; it will load on first use.", error);
-  }
-  setPreloadStatus("Downloading AI model 3/3 (RMBG)…");
-  try {
-    await loadBgRemoveSdk();
-    if (typeof window.BgRemove?.preload !== "function") throw new Error("RMBG preload is unavailable.");
-    await window.BgRemove.preload();
-  } catch (error) {
-    console.warn("RMBG model preloading failed; it will load on first use.", error);
-  }
-  setPreloadStatus("AI model preparation finished. Upload an image when ready.");
 }
 window.addEventListener("load", () => {
   // Start automatically on entry, after the page's visible content has loaded.
