@@ -76,3 +76,16 @@
 .export-settings select{display:block;width:100%;max-width:100%;margin:8px 0 12px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit;font-size:13px}
 .export-settings>small{display:block;color:var(--muted);font-size:11px;line-height:1.5;margin-top:8px}
 #output-dimensions{margin-top:10px}
+
+.background-palette{margin:16px 0 4px;padding:14px 15px;border:1px solid var(--line);border-radius:12px;background:#fbfcff}
+.palette-heading{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.palette-heading b{font-size:13px;color:var(--ink)}
+.palette-heading small{font-size:11px;color:var(--muted)}
+.palette-options{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+.swatch{width:34px;height:34px;flex:0 0 34px;border:2px solid #fff;border-radius:50%;background:var(--swatch);box-shadow:0 0 0 1px #cfd6e3;cursor:pointer;padding:0}
+.swatch.selected{box-shadow:0 0 0 2px var(--blue);transform:scale(1.08)}
+.transparent-swatch{background-color:#fff;background-image:linear-gradient(45deg,#dce2ec 25%,transparent 25%),linear-gradient(-45deg,#dce2ec 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#dce2ec 75%),linear-gradient(-45deg,transparent 75%,#dce2ec 75%);background-size:10px 10px;background-position:0 0,0 5px,5px -5px,-5px 0}
+.transparent-swatch span{display:grid;place-items:center;color:#e05252;font-size:22px;font-weight:700}
+.custom-swatch{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer}
+.custom-swatch input{width:34px;height:34px;padding:0;border:0;background:transparent;cursor:pointer}
+@media(max-width:560px){.background-palette{padding:12px}.palette-options{gap:10px}.swatch{width:32px;height:32px;flex-basis:32px}}
