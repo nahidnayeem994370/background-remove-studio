@@ -148,27 +148,34 @@ function setPreloadStatus(message) {
   if (preloadStatus) preloadStatus.textContent = message;
 }
 async function warmBg0Model() {
+  // Warm the same automatic BiRefNet path and quality pipeline used for
+  // real photos. This loads the selected model/runtime into this page session.
   const mod=await import("https://esm.sh/@bg0/browser");
-  if(typeof mod.prepareBackgroundRemoval==="function"){
-    await mod.prepareBackgroundRemoval({model:"auto"});
-  } else {
-    const canvas=document.createElement("canvas");canvas.width=64;canvas.height=64;
-    const ctx=canvas.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,64,64);
-    const sample=await canvasBlob(canvas,"image/png");
-    await mod.removeBackground(new File([sample],"warmup.png",{type:"image/png"}),{model:"auto",quality:"fast"});
-  }
+  const canvas=document.createElement("canvas");
+  canvas.width=256;canvas.height=256;
+  const ctx=canvas.getContext("2d");
+  ctx.fillStyle="#e9eef5";ctx.fillRect(0,0,256,256);
+  ctx.fillStyle="#243b53";ctx.beginPath();ctx.arc(128,128,58,0,Math.PI*2);ctx.fill();
+  const sample=await canvasBlob(canvas,"image/png");
+  await mod.removeBackground(
+    new File([sample],"model-warmup.png",{type:"image/png"}),
+    {model:"auto",quality:"quality"}
+  );
 }
 async function preloadAiModels() {
-  setPreloadStatus("Preparing free on-device BiRefNet AI…");
+  setPreloadStatus("Loading the background-removal AI…");
   try {
     await warmBg0Model();
-    setPreloadStatus("AI model ready. Upload an image.");
+    setPreloadStatus("AI is ready. Upload an image.");
   } catch (error) {
     console.warn("BiRefNet preloading failed; it will retry when you remove a background.", error);
-    setPreloadStatus("AI model will load when you start Background Remove.");
+    setPreloadStatus("AI will finish loading when you start Background Remove.");
   }
 }
-window.addEventListener("load", () => {
-  // Start automatically on entry, after the page's visible content has loaded.
+// Start model download as soon as the document is ready; do not wait for
+// every page asset. The browser caches model files for later visits.
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", preloadAiModels, { once: true });
+} else {
   preloadAiModels();
-}, { once: true });
+}
