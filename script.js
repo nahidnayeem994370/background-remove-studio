@@ -97,10 +97,51 @@ async function removeBg(file){
     const blob=await remove(file,AI_CONFIG);
     if(await hasTransparentPixels(blob))return blob;
     throw new Error("No transparent background was detected in the result.");
-  }catch(error){
-    console.error("Both background-removal models failed.",firstError,error);
-    throw new Error("AI could not remove this background correctly. Please try another clear photo.");
+  }catch(error){console.warn("ISNet backup failed; trying the browser SDK.",error);}
+  // Third engine: BgRemove's browser SDK (RMBG-1.4). It runs on the visitor's
+  // device and does not upload the photo.
+  try{
+    progress(true,"Trying another free AI model…",72);
+    if(!window.BgRemove){
+      await new Promise((resolve,reject)=>{
+        const existing=document.querySelector('script[data-bgremove-sdk]');
+        if(existing){existing.addEventListener("load",resolve,{once:true});existing.addEventListener("error",()=>reject(new Error("SDK unavailable")),{once:true});return;}
+        const script=document.createElement("script");
+        script.src="https://bgremovers.org/sdk/v1.js";script.async=true;script.dataset.bgremoveSdk="1";
+        script.onload=resolve;script.onerror=()=>reject(new Error("SDK unavailable"));
+        document.head.appendChild(script);
+      });
+    }
+    if(!window.BgRemove?.removeBackground)throw new Error("Browser SDK did not load.");
+    const blob=await window.BgRemove.removeBackground(file,{maxDimension:4096,onProgress:p=>{
+      const pct=p?.progress==null?78:Math.max(72,Math.min(94,Math.round(p.progress*100)));
+      progress(true,"Trying browser AI model…",pct);
+    }});
+    if(blob&&await hasTransparentPixels(blob))return blob;
+    throw new Error("Browser SDK did not return a transparent image.");
+  }catch(error){console.warn("BgRemove browser SDK failed; trying free online services.",error);}
+  // Last-resort free hosted APIs. These receive the image only after all
+  // on-device AI engines fail. Both providers return a transparent PNG.
+  const hosted=[
+    {name:"BgRemove free service",url:"https://bgremovers.org/api/v1/remove-background",field:"image"},
+    {name:"BGNinja free service",url:"https://bgninja.com/api/remove",field:"file"}
+  ];
+  for(let i=0;i<hosted.length;i++){
+    const provider=hosted[i];
+    try{
+      progress(true,"Trying "+provider.name+"…",82+i*6);
+      const form=new FormData();form.append(provider.field,file,file.name||"image.png");
+      if(provider.name==="BGNinja free service")form.append("src","background-remove-studio");
+      const response=await fetch(provider.url,{method:"POST",body:form});
+      if(!response.ok)throw new Error(provider.name+" returned HTTP "+response.status);
+      const blob=await response.blob();
+      if(!blob.type.includes("image"))throw new Error(provider.name+" returned an invalid response.");
+      if(await hasTransparentPixels(blob))return blob;
+      throw new Error(provider.name+" returned an image without transparency.");
+    }catch(error){console.warn(provider.name+" failed; trying next option.",error);}
   }
+  console.error("All background-removal engines failed.",firstError);
+  throw new Error("All free AI engines are unavailable right now. Please try again later or use a clearer photo.");
 }
 function canvasBlob(canvas,type,quality){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Could not create image. Try another format.")),type,quality));}
 async function run(){if(!sourceFile)return showError("Choose an image first.");processBtn.disabled=true;processBtn.style.opacity=".65";$("#result-actions").classList.add("hidden");$("#error-message").classList.add("hidden");
