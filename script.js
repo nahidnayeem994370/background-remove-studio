@@ -211,7 +211,7 @@ async function preloadAiModels() {
   setPreloadStatus("Downloading AI model 2/3 (ISNet)…");
   try {
     const imgly = await import("https://esm.sh/@imgly/background-removal@1.7.0");
-    if (typeof imgly.preload === "function") await imgly.preload(AI_CONFIG);
+    if (typeof imgly.preload === "function") await imgly.preload({ model: "isnet_fp16", output: { format: "image/png", type: "foreground" } });
     else throw new Error("ISNet preload is unavailable.");
   } catch (error) {
     console.warn("ISNet model preloading failed; it will load on first use.", error);
