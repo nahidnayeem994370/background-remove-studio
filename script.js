@@ -128,8 +128,10 @@ async function removeBg(file){
     }
   });
   if(!result?.blob)throw new Error("The AI did not return an image. Please reload the page and try again.");
-  if(!(await hasTransparentPixels(result.blob)))throw new Error("The AI could not separate the subject clearly in this photo. Try a photo with the subject clearly visible against its background.");
-  console.info("Background removal engine:",result.model,result.provider,"in",result.durationMs,"ms");
+  console.info("Background removal engine:",result.model,result.provider,"in",result.durationMs,"ms","output:",result.blob.type,result.blob.size,"bytes");
+  // Do not reject a valid model result based only on a strict alpha-pixel check.
+  // Some browsers/providers encode edge pixels differently; let the user inspect the preview.
+  if(!(await hasTransparentPixels(result.blob)))console.warn("The AI output contains no detectable transparent pixels; showing the model result for inspection.");
   return result.blob;
 }
 function canvasBlob(canvas,type,quality){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Could not create image. Try another format.")),type,quality));}
