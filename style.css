@@ -69,3 +69,6 @@
   animation:after-spin .8s linear infinite;
 }
 @keyframes after-spin{to{transform:rotate(360deg)}}
+
+.privacy-note{margin:12px 23px 0;color:#7c879b;font-size:10px;line-height:1.5;text-align:center}
+@media(max-width:560px){.privacy-note{margin:10px 6px 0;font-size:9px}}
