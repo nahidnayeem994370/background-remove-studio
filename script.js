@@ -120,6 +120,28 @@ async function removeBg(file){
     if(blob&&await hasTransparentPixels(blob))return blob;
     throw new Error("Browser SDK did not return a transparent image.");
   }catch(error){console.warn("BgRemove browser SDK failed; trying free online services.",error);}
+  // remove.bg API fallback (API key supplied by the site owner).
+  // NOTE: This key is currently client-side and visible in the public website source.
+  try{
+    progress(true,"Trying remove.bg AI…",80);
+    const form=new FormData();
+    form.append("image_file",file,file.name||"image.png");
+    form.append("size","auto");
+    form.append("format","png");
+    const response=await fetch("https://api.remove.bg/v1.0/removebg",{
+      method:"POST",
+      headers:{"X-Api-Key":"bAn3vx9cZtGM9fkL9RfoNFtu"},
+      body:form
+    });
+    if(!response.ok){
+      let detail="";
+      try{detail=(await response.json()).errors?.[0]?.title||"";}catch(e){}
+      throw new Error("remove.bg returned HTTP "+response.status+(detail?": "+detail:""));
+    }
+    const blob=await response.blob();
+    if(blob.type.includes("image")&&await hasTransparentPixels(blob))return blob;
+    throw new Error("remove.bg did not return a transparent image.");
+  }catch(error){console.warn("remove.bg API failed; trying other free services.",error);}
   // Last-resort free hosted APIs. These receive the image only after all
   // on-device AI engines fail. Both providers return a transparent PNG.
   const hosted=[
