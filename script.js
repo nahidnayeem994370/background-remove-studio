@@ -7,6 +7,9 @@ function setTool(tool){activeTool=tool;document.querySelectorAll("[data-tool]").
 async function decodeToPng(file){
   let input=file;
   const ext=(file.name.split(".").pop()||"").toLowerCase();
+  // BG0 accepts PNG/JPEG/WebP directly. Avoid decoding and re-encoding
+  // these files as PNG, which is slow and can inflate file size.
+  if(["png","jpg","jpeg","webp"].includes(ext) || /image\/(png|jpeg|webp)/i.test(file.type)) return file;
   if(["heic","heif"].includes(ext)||/image\/(heic|heif)/i.test(file.type)){
     const mod=await import("https://esm.sh/heic2any@0.0.4");
     const convert=mod.default||mod;
@@ -35,7 +38,7 @@ async function showFile(file){
   showError("Loading and converting your image…");
   try{
     const normalized=await decodeToPng(file);
-    sourceFile=new File([normalized],(file.name.replace(/\.[^.]+$/,"")||"image")+".png",{type:"image/png"});
+    sourceFile=normalized instanceof File ? normalized : new File([normalized],(file.name.replace(/\.[^.]+$/,"")||"image")+".png",{type:"image/png"});
     sourceUrl&&URL.revokeObjectURL(sourceUrl);sourceUrl=URL.createObjectURL(normalized);
     preview.src="";sourcePreview.src=sourceUrl;$("#result-placeholder").classList.remove("hidden");$(".compare-grid").classList.remove("has-result");sourceImage=new Image();
     await new Promise((resolve,reject)=>{sourceImage.onload=resolve;sourceImage.onerror=()=>reject(new Error("This image format is not supported by your browser."));sourceImage.src=sourceUrl;});
