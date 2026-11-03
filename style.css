@@ -108,17 +108,21 @@
 @media(max-width:560px){footer .footer-links{width:100%;order:4;justify-content:center}footer>small{margin-left:0}}
 
 
-/* On phones, keep the primary action immediately visible after an image is selected. */
+/* On phones, keep the image preview first and the main action directly beneath it. */
 @media(max-width:560px){
+  .hero{padding-top:18px}
+  .hero-copy{margin-bottom:12px}
+  .hero h1{margin:8px 0}
+  .hero-copy>p{margin-bottom:12px}
   .hero .edit-panel{display:flex;flex-direction:column;gap:12px}
   .hero .settings{display:contents}
-  .hero .process-btn{order:-1;margin:0 0 2px;padding:15px 14px;min-height:48px}
   .hero .compare-grid{order:1}
-  .hero .setting-row{order:2}
-  .hero .export-settings{order:3}
-  .hero #change-settings,.hero #resize-settings,.hero #compress-settings{order:4}
-  .hero #choose-another{order:5}
-  .hero #progress{order:6}
-  .hero .result-actions{order:7}
-  .hero .background-palette{order:8}
+  .hero .process-btn{order:2;margin:0;padding:15px 14px;min-height:48px}
+  .hero .setting-row{order:3}
+  .hero .export-settings{order:4}
+  .hero #change-settings,.hero #resize-settings,.hero #compress-settings{order:5}
+  .hero #choose-another{order:6}
+  .hero #progress{order:7}
+  .hero .result-actions{order:8}
+  .hero .background-palette{order:9}
 }
