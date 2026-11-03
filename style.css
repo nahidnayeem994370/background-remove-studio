@@ -100,3 +100,9 @@
 /* File-size details are shown only after Image Compress completes. */
 .file-size-info{font-size:12px;line-height:1.6;color:#53617a;text-align:center;font-weight:600;padding:2px 8px 5px}
 .file-size-info.hidden{display:none!important}
+
+/* Links for the new information pages in the homepage footer. */
+.footer-links{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+.footer-links a{font-size:10px;color:var(--muted);font-weight:600;text-decoration:none}
+.footer-links a:hover{color:var(--blue)}
+@media(max-width:560px){footer .footer-links{width:100%;order:4;justify-content:center}footer>small{margin-left:0}}
