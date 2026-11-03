@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nahidnayeem994370.github.io/background-remove-studio/sitemap.xml
