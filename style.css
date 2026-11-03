@@ -106,3 +106,19 @@
 .footer-links a{font-size:10px;color:var(--muted);font-weight:600;text-decoration:none}
 .footer-links a:hover{color:var(--blue)}
 @media(max-width:560px){footer .footer-links{width:100%;order:4;justify-content:center}footer>small{margin-left:0}}
+
+
+/* On phones, keep the primary action immediately visible after an image is selected. */
+@media(max-width:560px){
+  .hero .edit-panel{display:flex;flex-direction:column;gap:12px}
+  .hero .settings{display:contents}
+  .hero .process-btn{order:-1;margin:0 0 2px;padding:15px 14px;min-height:48px}
+  .hero .compare-grid{order:1}
+  .hero .setting-row{order:2}
+  .hero .export-settings{order:3}
+  .hero #change-settings,.hero #resize-settings,.hero #compress-settings{order:4}
+  .hero #choose-another{order:5}
+  .hero #progress{order:6}
+  .hero .result-actions{order:7}
+  .hero .background-palette{order:8}
+}
